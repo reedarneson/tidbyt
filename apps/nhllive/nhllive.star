@@ -219,6 +219,7 @@ def main(config):
                             children = [
                                 render.Marquee(
                                     offset_start=16,
+                                    offset_end=16,
                                     width=64,
                                     child=render.Text(
                                         content=update,
@@ -494,7 +495,7 @@ def get_faceoffs(game):
     fo_away = game['liveData']['boxscore']['teams']['away']['teamStats']['teamSkaterStats']['faceOffWinPercentage']
     fo_home = game['liveData']['boxscore']['teams']['home']['teamStats']['teamSkaterStats']['faceOffWinPercentage']
     team_away, team_home = get_current_teams(game)
-    return "FACEOFFS: " + team_away + "-" + str(fo_away) + "%" + " " + team_home + "-" + str(fo_home) + "%"
+    return "Faceoffs: " + team_away + "-" + str(fo_away) + "%" + " " + team_home + "-" + str(fo_home) + "%"
 
 # get hit stats
 def get_hits(game):
