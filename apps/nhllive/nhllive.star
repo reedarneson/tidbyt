@@ -34,8 +34,8 @@ FONT_COLOR_EMPTYNET = "#eb4c46"
 FONT_COLOR_POWERPLAY_EMPTYNET = "#a838d1"
 
 CACHE_LOGO_SECONDS = 86400
-CACHE_GAME_SECONDS = 3600
-CACHE_UPDATE_SECONDS = 10
+CACHE_GAME_SECONDS = 3600 
+CACHE_UPDATE_SECONDS = 60
 
 BASE_URL = "https://statsapi.web.nhl.com"
 BASE_IMAGE_URL="https://a.espncdn.com/combiner/i?img=/i/teamlogos/nhl/500/{}.png&scale=crop&cquality=40&location=origin&w=80&h=80"
@@ -130,11 +130,11 @@ def main(config):
             game_data = get_game_data(game_url)
             print("  - URL: %s" % game_url)
         else:
-            print("ERROR: No Game URL")
+            print("  - ERROR: No Game URL")
 
         # No Games Found, whomp whomp display
         if game_data == None:
-            print("ERROR: No Game Data")
+            print("  - ERROR: No Game Data")
             return render.Root(
                 child = render.Box(
                     child = render.Column(
@@ -161,7 +161,7 @@ def main(config):
     else:
         print("  - CACHE: Game Info found for teamid %s" % config_teamid)
 
-    # We have a Game, let's get some info!
+    # Grab the logos
     logo_away = str(get_team_logo(teamid_away))
     logo_home = str(get_team_logo(teamid_home))
 
@@ -252,7 +252,7 @@ def get_team_logo(teamId):
     logo = cache.get(cache_key)
 
     if logo == None:
-        print("  - CACHE: No key %s" % cache_key )
+        print("  - CACHE: No Logo found for teamid %s" % cache_key )
 
         # janky abbrevations fix
         if 'abbr_fix' in TEAMS_LIST[teamId]:
@@ -269,7 +269,7 @@ def get_team_logo(teamId):
             logo = response.body()
             cache.set(cache_key, logo, ttl_seconds=CACHE_LOGO_SECONDS)
     else:
-        print("  - CACHE: Image Found for %s" % cache_key)
+        print("  - CACHE: Logo found for teamid %s" % cache_key)
     return logo
 
 # returns today's current or next-schedule game for team - including opponent and live game feed url
@@ -284,7 +284,7 @@ def get_game(date,teamId):
     game_url = cache.get(cache_key_url) or None
 
     if teamid_away == None or teamid_home == None or game_url == None:
-        print("  - CACHE: No Game URL found for team %s" %teamId)
+        print("  - CACHE: No Game URL found for teamid %s" %teamId)
         url = BASE_URL+"/api/v1/schedule?startDate="+date+"&teamId="+str(teamId)
         response = http.get(url)
 
@@ -305,7 +305,7 @@ def get_game(date,teamId):
                 cache.set(cache_key_url, game_url, ttl_seconds=CACHE_GAME_SECONDS)
 
     else:
-        print("  - CACHE: Found game for team %s" %teamId)
+        print("  - CACHE: Found Game URL for teamid %s" %teamId)
             
     return int(teamid_away), int(teamid_home), game_url
 
@@ -351,10 +351,10 @@ def get_game_update(game, config, teamid):
     is_pp_home = ""
     is_empty_away = ""
     is_empty_home = ""
+    update = ""
 
     opts = []
     opt = ""
-    update = ""
     
     # If we have a live game, let's get some live game info
     if game['gameData']['status']['abstractGameState'] == "Live":
