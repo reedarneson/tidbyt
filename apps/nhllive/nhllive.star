@@ -35,6 +35,7 @@ FONT_COLOR_POWERPLAY_EMPTYNET = "#a838d1"
 
 CACHE_LOGO_SECONDS = 86400
 CACHE_GAME_SECONDS = 3600
+CACHE_UPDATE_SECONDS = 10
 
 BASE_URL = "https://statsapi.web.nhl.com"
 BASE_IMAGE_URL="https://a.espncdn.com/combiner/i?img=/i/teamlogos/nhl/500/{}.png&scale=crop&cquality=40&location=origin&w=80&h=80"
@@ -113,46 +114,56 @@ def main(config):
         team = TEAMS_LIST[config_teamid]['name']
     else: 
         team = config_teamid
-    print("Grabbing Game info for: %s" % team)
+
+
+    # Check our game info cache first
+    print("Grabbing Game for team: %s" % team)
+    goals_away, goals_home, update, game_time, game_period, is_pp_away, is_pp_home, is_empty_away, is_empty_home = get_game_update_cached(config_teamid)
     teamid_away, teamid_home, game_url = get_game(today, config_teamid)
 
+    # If not in cache, grab new info (or error out)
+    if goals_away == None or goals_home == None or update == None or game_time == None or game_period == None or is_pp_away == None or is_pp_home == None or is_empty_away == None or is_empty_home == None:
+        print("  - CACHE: No Game Info found for teamid %s" % config_teamid )
 
-    # No Game URL found
-    if game_url != None:
-        game_data = get_game_data(game_url)
-        print("  - URL: %s" % game_url)
-    else:
-        print("ERROR: No Game URL")
+        # No Game URL found
+        if game_url != None:
+            game_data = get_game_data(game_url)
+            print("  - URL: %s" % game_url)
+        else:
+            print("ERROR: No Game URL")
 
-    # No Games Found, whomp whomp display
-    if game_data == None:
-        print("ERROR: No Game Data")
-        return render.Root(
-            child = render.Box(
-                child = render.Column(
-                    expanded=True,
-                    main_align="space_around",
-                    cross_align="center",
-                    children = [
-                        render.Image(
-                            src=NHL_LOGO,
-                            width=20,
-                            height=20,
-                        ),
-                        render.Text(
-                            content="No Games :(",
-                            font=FONT_STYLE,
-                            color="#ababab",
-                        )
-                    ],
+        # No Games Found, whomp whomp display
+        if game_data == None:
+            print("ERROR: No Game Data")
+            return render.Root(
+                child = render.Box(
+                    child = render.Column(
+                        expanded=True,
+                        main_align="space_around",
+                        cross_align="center",
+                        children = [
+                            render.Image(
+                                src=NHL_LOGO,
+                                width=20,
+                                height=20,
+                            ),
+                            render.Text(
+                                content="No Games :(",
+                                font=FONT_STYLE,
+                                color="#ababab",
+                            )
+                        ],
+                    ),
                 ),
-            ),
-        )
+            )
+        # Grab fresh info
+        goals_away, goals_home, update, game_time, game_period, is_pp_away, is_pp_home, is_empty_away, is_empty_home = get_game_update(game_data, config, config_teamid)
+    else:
+        print("  - CACHE: Game Info found for teamid %s" % config_teamid)
 
     # We have a Game, let's get some info!
     logo_away = str(get_team_logo(teamid_away))
     logo_home = str(get_team_logo(teamid_home))
-    goals_away, goals_home, update, game_time, game_period, is_pp_away, is_pp_home, is_empty_away, is_empty_home = get_game_update(game_data, config)
 
     # PowerPlay/EmptyNet Color Change
     score_color_away = get_score_color(is_pp_away, is_empty_away)
@@ -241,7 +252,7 @@ def get_team_logo(teamId):
     logo = cache.get(cache_key)
 
     if logo == None:
-        print("  - Cache: No key %s" % cache_key )
+        print("  - CACHE: No key %s" % cache_key )
 
         # janky abbrevations fix
         if 'abbr_fix' in TEAMS_LIST[teamId]:
@@ -273,7 +284,7 @@ def get_game(date,teamId):
     game_url = cache.get(cache_key_url) or None
 
     if teamid_away == None or teamid_home == None or game_url == None:
-        print("  - CACHE: No game found for team %s" %teamId)
+        print("  - CACHE: No Game URL found for team %s" %teamId)
         url = BASE_URL+"/api/v1/schedule?startDate="+date+"&teamId="+str(teamId)
         response = http.get(url)
 
@@ -317,8 +328,22 @@ def get_game_data(game_url):
         return None
     return response.json()
 
+# pull from cache if exists
+def get_game_update_cached(teamid):
+    goals_away = cache.get("game_" + str(teamid) + "_goals_away") or None
+    goals_home = cache.get("game_" + str(teamid) + "_goals_home") or None
+    game_time = cache.get("game_" + str(teamid) + "_game_time") or None
+    game_period = cache.get("game_" + str(teamid) + "_game_period") or None
+    is_pp_away = cache.get("game_" + str(teamid) + "_is_pp_away") or None
+    is_pp_home = cache.get("game_" + str(teamid) + "_is_pp_home") or None
+    is_empty_away = cache.get("game_" + str(teamid) + "_is_empty_away") or None
+    is_empty_home = cache.get("game_" + str(teamid) + "_is_empty_home") or None
+    update = cache.get("game_" + str(teamid) + "_update") or None
+
+    return str(goals_away), str(goals_home), update, game_time, game_period, is_pp_away, is_pp_home, is_empty_away, is_empty_home
+
 # collection function to get current score, time, and other random updates
-def get_game_update(game, config):
+def get_game_update(game, config, teamid):
     goals_away,goals_home = get_current_score(game)
     game_time = ""
     game_period = ""
@@ -403,6 +428,18 @@ def get_game_update(game, config):
         update = get_giveaways(game)
     
     print("  - Update: %s" % update)
+
+    # Set into the cache
+    cache.set("game_" + str(teamid) + "_goals_away", str(goals_away), ttl_seconds = CACHE_UPDATE_SECONDS) 
+    cache.set("game_" + str(teamid) + "_goals_home", str(goals_home), ttl_seconds = CACHE_UPDATE_SECONDS)
+    cache.set("game_" + str(teamid) + "_game_time", str(game_time), ttl_seconds = CACHE_UPDATE_SECONDS)
+    cache.set("game_" + str(teamid) + "_game_period", str(game_period), ttl_seconds = CACHE_UPDATE_SECONDS)
+    cache.set("game_" + str(teamid) + "_is_pp_away", str(is_pp_away), ttl_seconds = CACHE_UPDATE_SECONDS)
+    cache.set("game_" + str(teamid) + "_is_pp_home", str(is_pp_home), ttl_seconds = CACHE_UPDATE_SECONDS) 
+    cache.set("game_" + str(teamid) + "_is_empty_away", str(is_empty_away), ttl_seconds = CACHE_UPDATE_SECONDS)
+    cache.set("game_" + str(teamid) + "_is_empty_home", str(is_empty_home), ttl_seconds = CACHE_UPDATE_SECONDS)
+    cache.set("game_" + str(teamid) + "_update", str(update), ttl_seconds = CACHE_UPDATE_SECONDS)
+
     return str(goals_away), str(goals_home), update, game_time, game_period, is_pp_away, is_pp_home, is_empty_away, is_empty_home
 
 # Get scheduled/finished game info
@@ -528,6 +565,18 @@ def get_giveaways(game):
 
 # Check what color to use for team abbreviation based on pp or empty net
 def get_score_color(power_play, empty_net):
+    
+    # TODO: make this better
+    if power_play == "True" or power_play == True:
+        power_play = True
+    else:
+        power_play = False
+
+    if empty_net == "True" or empty_net == True:
+        empty_net = True
+    else:
+        empty_net = False
+
     if power_play and empty_net:
         return FONT_COLOR_POWERPLAY_EMPTYNET
     elif empty_net:
