@@ -31,6 +31,7 @@ FONT_STYLE = "CG-pixel-3x5-mono"
 FONT_COLOR_EVEN = "#FFFFFF"
 FONT_COLOR_POWERPLAY = "#59e9ff"
 FONT_COLOR_EMPTYNET = "#eb4c46"
+FONT_COLOR_POWERPLAY_EMPTYNET = "#a838d1"
 
 CACHE_LOGO_SECONDS = 86400
 CACHE_GAME_SECONDS = 3600
@@ -527,10 +528,12 @@ def get_giveaways(game):
 
 # Check what color to use for team abbreviation based on pp or empty net
 def get_score_color(power_play, empty_net):
-    if power_play:
-        return FONT_COLOR_POWERPLAY
+    if power_play and empty_net:
+        return FONT_COLOR_POWERPLAY_EMPTYNET
     elif empty_net:
         return FONT_COLOR_EMPTYNET
+    elif power_play:
+        return FONT_COLOR_POWERPLAY
     else:
         return FONT_COLOR_EVEN
 
