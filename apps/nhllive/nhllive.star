@@ -451,7 +451,7 @@ def get_latest_goal(game):
         description = game['liveData']['plays']['allPlays'][last_goal]['result']['description']
         return "LG: " + description + " @ " + time + " in " + period
     else:
-        return "No goals yet ... why are you seeing this?"
+        return "LG: Play Data Not Available Yet"
 
 # whatever last play happened
 def get_last_play(game):
