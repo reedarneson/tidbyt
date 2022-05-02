@@ -307,7 +307,7 @@ def get_game(date,teamId):
     else:
         print("  - CACHE: Found Game URL for teamid %s" %teamId)
             
-    return int(teamid_away), int(teamid_home), game_url
+    return teamid_away, teamid_home, game_url
 
 # looks up the next game for a team
 def get_next_game(teamId):
@@ -319,6 +319,10 @@ def get_next_game(teamId):
         return {'totalGames':0}
 
     response = response.json()
+
+    if 'nextGameSchedule' not in response['teams'][0].keys():
+        return {'totalGames':0}
+    
     return response['teams'][0]['nextGameSchedule']
 
 # return live game data
