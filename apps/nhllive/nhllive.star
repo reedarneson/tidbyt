@@ -182,7 +182,7 @@ def main(config):
                             children = [
                                 render.Image(width=18, height=18, src=logo_away),
                                 render.Text(
-                                    content=TEAMS_LIST[teamid_away]['abbreviation'] + " "  + goals_away,
+                                    content=TEAMS_LIST[int(teamid_away)]['abbreviation'] + " "  + goals_away,
                                     font=FONT_STYLE,
                                     color=score_color_away,
                                 ),
@@ -215,7 +215,7 @@ def main(config):
                             children = [
                                 render.Image(width=18, height=18, src=logo_home),
                                 render.Text(
-                                    content=goals_home + " " + TEAMS_LIST[teamid_home]['abbreviation'],
+                                    content=goals_home + " " + TEAMS_LIST[int(teamid_home)]['abbreviation'],
                                     font=FONT_STYLE,
                                     color=score_color_home,
                                 ),
