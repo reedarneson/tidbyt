@@ -35,7 +35,7 @@ FONT_COLOR_POWERPLAY_EMPTYNET = "#a838d1"
 CACHE_LOGO_SECONDS = 86400
 CACHE_GAME_SECONDS = 3600 
 CACHE_UPDATE_SECONDS = 30
-CACHE_NOGAME_SECONDS = 3600
+CACHE_SHUFFLETEAMS_SECONDS = 3600
 
 BASE_URL = "https://statsapi.web.nhl.com"
 BASE_IMAGE_URL="https://a.espncdn.com/combiner/i?img=/i/teamlogos/nhl/500/{}.png&scale=crop&cquality=40&location=origin&w=80&h=80"
@@ -93,10 +93,11 @@ TEAMS_LIST = {
     55: {'name': 'Seattle Kraken', 'abbreviation': 'SEA'}
 }
 
+
 # Main App
 def main(config):
     game_data = None
-
+    
      # Get timezone and set today date
     timezone = get_timezone(config)
     now = time.now().in_location(timezone)
@@ -108,12 +109,18 @@ def main(config):
 
     if config_teamid == 0:
         config_teamid = get_random_team()
+        if config_teamid == None:
+            team = "NHL"
+            team_abbr = "NHL"
+
 
     # Grab team name
     if config_teamid in TEAMS_LIST.keys():
         team = TEAMS_LIST[config_teamid]['name']
+        team_abbr = TEAMS_LIST[config_teamid]['abbreviation']
     else: 
         team = config_teamid
+        team_abbr = "NHL"
 
 
     # Check our game info cache first
@@ -144,7 +151,7 @@ def main(config):
                             height=20,
                         ),
                         render.Text(
-                            content="No %s Games" % TEAMS_LIST[config_teamid]['abbreviation'],
+                            content="No %s Games" % team_abbr,
                             font=FONT_STYLE,
                             color="#ababab",
                         )
@@ -663,13 +670,48 @@ def get_score_color(power_play, empty_net):
     else:
         return FONT_COLOR_EVEN
 
+# Old simple random
+# def get_random_team():
+#     rand = random.number(0, len(TEAMS_LIST)-1)
+#     return TEAMS_LIST.keys()[rand]
+
+# This is WIP to random only current games. 
 def get_random_team():
-    rand = random.number(0, len(TEAMS_LIST)-1)
-    return TEAMS_LIST.keys()[rand]
+    scheduled_teams = cache.get('scheduled_teams') or None
+
+    if scheduled_teams == None:
+        url = BASE_URL + '/api/v1/teams?expand=team.schedule.next'
+        print("  - HTTP.GET: %s" % url)
+        response = http.get(url)
+
+        # Failed http.get
+        if response.status_code != 200:
+            return {'totalGames':0}
+
+        response = response.json()
+
+        scheduled_teams = {}
+        for r in response['teams']:
+            if 'nextGameSchedule' in r:
+                if r['id'] not in scheduled_teams:
+                    scheduled_teams[str(int(r['id']))] = True
+
+        scheduled_teams_enc = json.encode(scheduled_teams)
+        cache.set('scheduled_teams', scheduled_teams_enc, ttl_seconds=CACHE_SHUFFLETEAMS_SECONDS)
+
+    else:
+        print("  - CACHE: Found Scheduled Teams %s" % scheduled_teams)
+        scheduled_teams = json.decode(scheduled_teams)
+
+
+    if len(scheduled_teams) == 0:
+        return None
+    
+    rand = random.number(0, len(scheduled_teams)-1)
+    return int(scheduled_teams.keys()[rand])
 
 def get_timezone(config):
     return json.decode(config.get("location", DEFAULT_LOCATION))['timezone']
-
             
 # Schema 
 def get_schema():
